@@ -38,7 +38,7 @@ while True:
             print(f'Client connected: {client_address}')
 
             user = receive_message(client_socket)
-            #print(user)
+
             if user is False:
                 continue
             SOCKET_LIST.append(client_socket)
@@ -61,7 +61,6 @@ while True:
             for client_socket in CLIENTS:
                 if client_socket != sock:
                     client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
-
 
         for notified_socket in exception_sockets:
             SOCKET_LIST.remove(notified_socket)
