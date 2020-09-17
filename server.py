@@ -57,7 +57,7 @@ while True:
             print(f'Received message from {user["data"].decode("utf-8")}: {message["data"].decode("utf-8")}')
 
             for client_socket in CLIENTS:
-                if client_socket != sock:
+                #if client_socket != sock:
                     client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
 
         for notified_socket in exception_sockets:
