@@ -2,15 +2,23 @@ import socket
 import errno
 import sys
 
+if (len(sys.argv) < 3):
+    print('To run : python client.py hostname port (e.g python client.py localhost 9009)')
+    sys.exit()
+
 HEADER_LENGTH = 1024
-IP = "127.0.0.1"
-PORT = 9009
-my_username = input("Username: ")
+IP = sys.argv[1]
+PORT = int(sys.argv[2])
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket.connect((IP, PORT))
-client_socket.setblocking(False)
+try:
+    client_socket.connect((IP, PORT))
+    client_socket.setblocking(False)
+except:
+    print('Unable to connect')
+    sys.exit()
 
+my_username = input("Username: ")
 username = my_username.encode('utf-8')
 username_header = f"{len(username):<{HEADER_LENGTH}}".encode('utf-8')
 client_socket.send(username_header + username)
