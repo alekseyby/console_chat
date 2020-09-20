@@ -19,10 +19,9 @@ def register_client(client_socket, username):
     client_socket.send(bytes(message, encoding="utf-8"))
 
 
-def send_message(client_socket, username, data):
+def send_message(client_socket, message_type, data):
     data_to_server = {
-        'message_type': 'message',
-        'sender': username,
+        'message_type': message_type,
         'data': data
     }
     message = json.dumps(data_to_server)
@@ -50,7 +49,10 @@ def refresh_client_window(client_socket):
                 sender = message['sender']
                 data = message['data']
 
-                print(f'{sender} > {data}')
+                if message_type == 'system_message':
+                    print(f'{data}')
+                else:
+                    print(f'{sender} > {data}')
             except IOError as ex:
                 if ex.errno != errno.EAGAIN and ex.errno != errno.EWOULDBLOCK:
                     print('Reading error: {}'.format(str(ex)))
@@ -58,6 +60,8 @@ def refresh_client_window(client_socket):
                 cv.wait(0.2)
             except Exception as ex:
                 print('Reading error: {}'.format(str(ex)))
+                send_message(client_socket, "command", "cmd!error")
+                client_socket.close()
                 sys.exit()
 
 
@@ -72,6 +76,7 @@ def main():
         client_socket.setblocking(False)
     except:
         print('Unable to connect')
+        client_socket.close()
         sys.exit()
 
     username = input("Username: ")
@@ -81,14 +86,23 @@ def main():
 
     while True:
         try:
-            # message = input(f'{my_username} > ')
             data = input()
             if data:
-                send_message(client_socket, username, data)
+                print(f'{username} > {data}')
+                if data.startswith("cmd!"):
+                    send_message(client_socket, "command", data)
+                else:
+                    send_message(client_socket, "message", data)
                 with cv:
                     cv.notify_all()
+        except KeyboardInterrupt:
+            send_message(client_socket, "command", "cmd!client_exit")
+            client_socket.close()
+            sys.exit()
         except Exception as ex:
             print('Reading error: {}'.format(str(ex)))
+            send_message(client_socket, "command", "cmd!error")
+            client_socket.close()
             sys.exit()
 
 

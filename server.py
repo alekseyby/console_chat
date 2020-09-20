@@ -1,6 +1,8 @@
 import socket
 import select
 import json
+from datetime import datetime
+from random import randint
 
 HEADER_LENGTH = 1024
 HOST = '127.0.0.1'
@@ -33,24 +35,72 @@ def parse_message_from_client(client_socket):
 
         message = json.loads(data_from_client)
         message_type = message['message_type']
-        sender = message['sender']
         data = message['data']
-
-        return {'message_type': message_type, 'sender': sender, 'data': data}
+        return {'message_type': message_type, 'data': data}
     except:
         return False
 
 
-def send_message_to_all_clients(username, data):
+def send_message_to_another_clients_from(client_socket, message_type, username, data):
     data_to_client = {
-        'message_type': 'message',
+        'message_type': message_type,
         'sender': username,
         'data': data
 
     }
     message = json.dumps(data_to_client)
-    for client_socket in CLIENTS:
-        client_socket.send(bytes(message, encoding="utf-8"))
+    for sock in CLIENTS:
+        if sock != client_socket:
+            sock.send(bytes(message, encoding="utf-8"))
+
+
+def send_message_to_client(client_socket, message_type, username, data):
+    data_to_client = {
+        'message_type': message_type,
+        'sender': username,
+        'data': data
+    }
+    message = json.dumps(data_to_client)
+    client_socket.send(bytes(message, encoding="utf-8"))
+
+
+def rock_paper_scissors_game(command):
+    index = command.find(":")
+    if index == -1:
+        return "Incorrect command format. Please enter again: 'cmd!start_game:option' " \
+               "where option is one of the proposed: rock, scissors, paper"
+
+    client_option = command[index + 1:]
+
+    # create a list of play options
+    options = ["rock", "paper", "scissors"]
+
+    # assign a random play to the server
+    server_option = options[randint(0, 2)]
+
+    game_result = ""
+    if client_option in options and client_option == server_option:
+        game_result = format("Tie! Server option: {}, your option {}").format(server_option, client_option)
+    elif client_option == "rock":
+        if server_option == "paper":
+            game_result = format("You lose! Server option: {}, your option {}").format(server_option, client_option)
+        else:
+            game_result = format("You win! Server option: {}, your option {}").format(server_option, client_option)
+    elif client_option == "paper":
+        if server_option == "scissors":
+            game_result = format("You lose! Server option: {}, your option {}").format(server_option, client_option)
+        else:
+            game_result = format("You win! Server option: {}, your option {}").format(server_option, client_option)
+    elif client_option == "scissors":
+        if server_option == "rock":
+            game_result = format("You lose! Server option: {}, your option {}").format(server_option, client_option)
+        else:
+            game_result = format("You win! Server option: {}, your option {}").format(server_option, client_option)
+    else:
+        game_result = "Incorrect command format. Please enter again: 'cmd!start_game:option' " \
+                      "where option is one of the proposed: rock, scissors, paper"
+
+    return game_result
 
 
 def main():
@@ -70,31 +120,71 @@ def main():
             if sock == server_socket:
                 client_socket, client_address = server_socket.accept()
                 user = get_user_data(client_socket)
-
                 if user is False:
+                    client_socket.close()
                     continue
+
+                username = user['username']
+                # for client in CLIENTS.values():
+                #     if client['username'] == username:
+                #         data = "The client '{}' already exists on the system, please enter a different name:", \
+                #                format(username)
+                #         send_message_to_client(sock, 'system_message', username, data)
+                #         continue
+
                 SOCKETS_LIST.append(client_socket)
                 CLIENTS[client_socket] = user
-
-                print('Accepted new connection from {}:{}, username: {}'.format(*client_address, user['username']))
+                print('Accepted new connection from {}:{}, username: {}'.format(*client_address, username))
             else:
                 message = parse_message_from_client(sock)
                 user = CLIENTS[sock]
                 client_name = user['username']
-                data = message["data"]
+
                 if message is False:
                     print('Closed connection from: {}'.format(client_name))
                     SOCKETS_LIST.remove(sock)
                     del CLIENTS[sock]
+                    sock.close()
                     continue
 
+                message_type = message['message_type']
+                if message_type == "command":
+                    command = str(message['data'])
+                    print("The client '{}' has requested the command: '{}'".format(client_name, command))
+                    if command == "cmd!client_exit" or command == "cmd!error":
+                        data = "Client '{}' left the chat".format(client_name)
+                        send_message_to_another_clients_from(sock, 'system_message', client_name, data)
+                        SOCKETS_LIST.remove(sock)
+                        del CLIENTS[sock]
+                        sock.close()
+                        continue
+                    elif command == "cmd!participants_count":
+                        data = "Participants count: {}".format(len(CLIENTS))
+                        send_message_to_client(sock, 'system_message', client_name, data)
+                        continue
+                    elif command == "cmd!current_time":
+                        now = datetime.now()
+                        current_time = now.strftime("%H:%M:%S")
+                        data = "Current time: {}".format(current_time)
+                        send_message_to_client(sock, 'system_message', client_name, data)
+                        continue
+                    elif command.startswith("cmd!start_game"):
+                        data = rock_paper_scissors_game(command)
+                        send_message_to_client(sock, 'system_message', client_name, data)
+                        continue
+                    else:
+                        data = "The command: '{}' is not supported by the server".format(command)
+                        send_message_to_client(sock, 'system_message', client_name, data)
+
+                data = message['data']
                 print(f'Received message from {client_name}: {data}')
 
-                send_message_to_all_clients(client_name, data)
+                send_message_to_another_clients_from(sock, 'message', client_name, data)
 
             for notified_socket in exception_sockets:
                 SOCKETS_LIST.remove(notified_socket)
                 del CLIENTS[notified_socket]
+                sock.close()
 
 
 if __name__ == "__main__":
