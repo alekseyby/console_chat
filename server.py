@@ -178,9 +178,9 @@ def main(host, port):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--host", help="Server will be reachable by this address.(default = 127.0.0.1)",
+    parser.add_argument("--host", help="Server will be reachable by this address.(default = 127.0.0.1)",
                         type=str, default='127.0.0.1')
-    parser.add_argument("-p", "--port", help="Server will listening this port. (default = 9009)", type=int,
+    parser.add_argument("--port", help="Server will listening this port. (default = 9009)", type=int,
                         default=9009)
     args = parser.parse_args()
     main(args.host, args.port)

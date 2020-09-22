@@ -105,10 +105,10 @@ def main(host, port):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--host",
+    parser.add_argument("--host",
                         help="Client will be connected to this address.(default = 127.0.0.1)", type=str,
                         default='127.0.0.1')
-    parser.add_argument("-p", "--port", help="Client will be connected to this port. (default = 9009)",
+    parser.add_argument("--port", help="Client will be connected to this port. (default = 9009)",
                         type=int, default=9009)
     args = parser.parse_args()
     main(args.host, args.port)
