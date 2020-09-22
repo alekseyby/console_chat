@@ -3,10 +3,9 @@ import socket
 import errno
 import sys
 import json
+import argparse
 
 HEADER_LENGTH = 1024
-IP = '127.0.0.1'
-PORT = 9009
 
 cv = Condition()
 
@@ -33,6 +32,7 @@ def get_message(client_socket):
     # if a client closes a connection correctly
     if not len(data_from_server):
         print('Connection closed by the server')
+        client_socket.close()
         sys.exit()
 
     message = json.loads(data_from_server)
@@ -56,6 +56,7 @@ def refresh_client_window(client_socket):
             except IOError as ex:
                 if ex.errno != errno.EAGAIN and ex.errno != errno.EWOULDBLOCK:
                     print('Reading error: {}'.format(str(ex)))
+                    client_socket.close()
                     sys.exit()
                 cv.wait(0.2)
             except Exception as ex:
@@ -65,14 +66,10 @@ def refresh_client_window(client_socket):
                 sys.exit()
 
 
-def main():
-    # if (len(sys.argv) < 3):
-    #     print('To run : python client.py hostname port (e.g python client.py localhost 9009)')
-    #     sys.exit()
-
+def main(host, port):
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        client_socket.connect((IP, PORT))
+        client_socket.connect((host, port))
         client_socket.setblocking(False)
     except:
         print('Unable to connect')
@@ -107,4 +104,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-t", "--host",
+                        help="Client will be connected to this address.(default = 127.0.0.1)", type=str,
+                        default='127.0.0.1')
+    parser.add_argument("-p", "--port", help="Client will be connected to this port. (default = 9009)",
+                        type=int, default=9009)
+    args = parser.parse_args()
+    main(args.host, args.port)

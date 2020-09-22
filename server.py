@@ -3,10 +3,9 @@ import select
 import json
 from datetime import datetime
 from random import randint
+import argparse
 
 HEADER_LENGTH = 1024
-HOST = '127.0.0.1'
-PORT = 9009
 SOCKETS_LIST = []
 CLIENTS = {}
 
@@ -65,56 +64,53 @@ def send_message_to_client(client_socket, message_type, username, data):
 
 
 def rock_paper_scissors_game(command):
+    error_msg = "Incorrect command format. Please enter again: 'cmd!start_game:option' " \
+                "where option is one of the proposed: rock, scissors, paper"
     index = command.find(":")
     if index == -1:
-        return "Incorrect command format. Please enter again: 'cmd!start_game:option' " \
-               "where option is one of the proposed: rock, scissors, paper"
+        return error_msg
 
     client_option = command[index + 1:]
 
-    # create a list of play options
     options = ["rock", "paper", "scissors"]
 
-    # assign a random play to the server
-    server_option = options[randint(0, 2)]
+    if client_option not in options:
+        return error_msg
 
+    server_option = options[randint(0, 2)]
     game_result = ""
-    if client_option in options and client_option == server_option:
-        game_result = format("Tie! Server option: {}, your option {}").format(server_option, client_option)
+
+    if client_option == server_option:
+        game_result = "Tie!"
     elif client_option == "rock":
         if server_option == "paper":
-            game_result = format("You lose! Server option: {}, your option {}").format(server_option, client_option)
+            game_result = "You lose!"
         else:
-            game_result = format("You win! Server option: {}, your option {}").format(server_option, client_option)
+            game_result = "You win!"
     elif client_option == "paper":
         if server_option == "scissors":
-            game_result = format("You lose! Server option: {}, your option {}").format(server_option, client_option)
+            game_result = "You lose!"
         else:
-            game_result = format("You win! Server option: {}, your option {}").format(server_option, client_option)
+            game_result = "You win!"
     elif client_option == "scissors":
         if server_option == "rock":
-            game_result = format("You lose! Server option: {}, your option {}").format(server_option, client_option)
+            game_result = "You lose!"
         else:
-            game_result = format("You win! Server option: {}, your option {}").format(server_option, client_option)
-    else:
-        game_result = "Incorrect command format. Please enter again: 'cmd!start_game:option' " \
-                      "where option is one of the proposed: rock, scissors, paper"
-
-    return game_result
+            game_result = "You win!"
+    return game_result + " Server option: {}, your option {}".format(server_option, client_option)
 
 
-def main():
+def main(host, port):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # to overcome the "Address already in use". This modifies the socket to allow us to reuse the address.
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind((HOST, PORT))
+    server_socket.bind((host, port))
     server_socket.listen()
     SOCKETS_LIST.append(server_socket)
 
-    print(f'Listening for connections on {HOST}:{PORT}...')
+    print(f'Listening for connections on {host}:{port}...')
 
     while True:
-
         ready_to_read, ready_to_write, exception_sockets = select.select(SOCKETS_LIST, [], SOCKETS_LIST)
         for sock in ready_to_read:
             if sock == server_socket:
@@ -124,17 +120,9 @@ def main():
                     client_socket.close()
                     continue
 
-                username = user['username']
-                # for client in CLIENTS.values():
-                #     if client['username'] == username:
-                #         data = "The client '{}' already exists on the system, please enter a different name:", \
-                #                format(username)
-                #         send_message_to_client(sock, 'system_message', username, data)
-                #         continue
-
                 SOCKETS_LIST.append(client_socket)
                 CLIENTS[client_socket] = user
-                print('Accepted new connection from {}:{}, username: {}'.format(*client_address, username))
+                print('Accepted new connection from {}:{}, username: {}'.format(*client_address, user['username']))
             else:
                 message = parse_message_from_client(sock)
                 user = CLIENTS[sock]
@@ -175,6 +163,7 @@ def main():
                     else:
                         data = "The command: '{}' is not supported by the server".format(command)
                         send_message_to_client(sock, 'system_message', client_name, data)
+                        continue
 
                 data = message['data']
                 print(f'Received message from {client_name}: {data}')
@@ -188,4 +177,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-t", "--host", help="Server will be reachable by this address.(default = 127.0.0.1)",
+                        type=str, default='127.0.0.1')
+    parser.add_argument("-p", "--port", help="Server will listening this port. (default = 9009)", type=int,
+                        default=9009)
+    args = parser.parse_args()
+    main(args.host, args.port)
