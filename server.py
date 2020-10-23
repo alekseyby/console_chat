@@ -4,12 +4,14 @@ import json
 from datetime import datetime
 from random import randint
 import argparse
+from utils import timer
 
 HEADER_LENGTH = 1024
 SOCKETS_LIST = []
 CLIENTS = {}
 
 
+@timer
 def get_user_data(client_socket):
     try:
         data_from_client = client_socket.recv(HEADER_LENGTH)
