@@ -10,13 +10,18 @@ from utils import TimeExecution
 HEADER_LENGTH = 1024
 SOCKETS_LIST = []
 CLIENTS = {}
+WINNING_GAME_COMBINATIONS = {
+    ("paper", "rock"): "You win!",
+    ("scissors", "paper"): "You win!",
+    ("rock", "scissors"): "You win!"
+}
 
 
 def get_user_data(client_socket):
     try:
         data_from_client = client_socket.recv(HEADER_LENGTH)
         # if a client closes a connection correctly
-        if not len(data_from_client):
+        if not data_from_client:
             return False
 
         message = json.loads(data_from_client)
@@ -31,7 +36,7 @@ def parse_message_from_client(client_socket):
     try:
         data_from_client = client_socket.recv(HEADER_LENGTH)
         # if a client closes a connection correctly
-        if not len(data_from_client):
+        if not data_from_client:
             return False
 
         message = json.loads(data_from_client)
@@ -66,39 +71,21 @@ def send_message_to_client(client_socket, message_type, username, data):
 
 
 def rock_paper_scissors_game(command):
-    error_msg = "Incorrect command format. Please enter again: 'cmd!start_game:option' " \
-                "where option is one of the proposed: rock, scissors, paper"
-    index = command.find(":")
-    if index == -1:
-        return error_msg
-
-    client_option = command[index + 1:]
-
+    client_option = command[command.find(":") + 1:]
     options = ["rock", "paper", "scissors"]
 
     if client_option not in options:
-        return error_msg
+        return "Incorrect command format. Please enter again: 'cmd!start_game:option' " \
+                "where option is one of the proposed: rock, scissors, paper"
 
     server_option = options[randint(0, 2)]
-    game_result = ""
+    game_result = WINNING_GAME_COMBINATIONS.get((client_option, server_option))
 
-    if client_option == server_option:
-        game_result = "Tie!"
-    elif client_option == "rock":
-        if server_option == "paper":
-            game_result = "You lose!"
+    if not game_result:
+        if client_option == server_option:
+            game_result = "Tie!"
         else:
-            game_result = "You win!"
-    elif client_option == "paper":
-        if server_option == "scissors":
             game_result = "You lose!"
-        else:
-            game_result = "You win!"
-    elif client_option == "scissors":
-        if server_option == "rock":
-            game_result = "You lose!"
-        else:
-            game_result = "You win!"
     return game_result + " Server option: {}, your option {}".format(server_option, client_option)
 
 
@@ -158,7 +145,7 @@ def main(host, port):
                         data = "Current time: {}".format(current_time)
                         send_message_to_client(sock, 'system_message', client_name, data)
                         continue
-                    elif command.startswith("cmd!start_game"):
+                    elif command.startswith("cmd!start_game:"):
                         data = rock_paper_scissors_game(command)
                         send_message_to_client(sock, 'system_message', client_name, data)
                         continue
